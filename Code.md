@@ -5,7 +5,8 @@ install.packages("ineq")
 install.packages("vegan")
 install.packages("dplyr")
 install.packages("ggplot2")
-install.packages("ggpubr")  
+install.packages("ggpubr")
+install.packages("terra")
 
 # Load libraries
 library(sf)          # For geospatial data
@@ -14,10 +15,24 @@ library(vegan)       # For biodiversity indices
 library(dplyr)       # For data manipulation
 library(ggplot2)     # For plotting
 library(ggpubr)      # For correlation plots
+library(terra)       # For vector spatial data
 
-# Load the shapefiles
+# Load bird data
+birddata <- read.delim("path/to/birddata.txt)
+
+# Clean bird data
+birddata <- birddata %>%
+  filter(CATEGORY %in% c("species", "issf"))
+
+birddata <- birddata [, -c(1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50)]
+birddata$OBSERVATION.COUNT <- gsub("x", "1", birddata$OBSERVATION.COUNT)
+birddata$OBSERVATION.COUNT <- as.numeric(birddata$OBSERVATION.COUNT)
+
+# Convert in shape
+birddata <- st_as_sf(birddata, coords = c("LONGITUDE", "LATITUDE"), crs = 4326)
+
+#Load value city data
 citydata <- st_read("path/to/citydata.shp") # Polygons
-birddata <- st_read("path/to/birddata.shp") # Points
 
 # Check CRS of both shapefiles
 st_crs(citydata)
@@ -26,92 +41,26 @@ st_crs(birddata)
 # If CRS is different, reproject one of them
 birddata <- st_transform(birddata, st_crs(citydata))
 
-# Perform the spatial join
-points_with_values <- st_join(birddata, citydata, join = st_within)
+# Reproject citydata to UTM (change the EPSG code according to city zone)
+citydata_utm <- st_transform(citydata, crs = 32618)
 
-# Extract the value column
-values <- points_with_values$value
+# Reproject birddata to UTM (change the EPSG code according to city zone)
+birddata_utm <- st_transform(birddata, crs = 32618)
 
-# Calculate the Gini Index for each hexagon
-gini_index <- points_with_values %>%
-  group_by(id) %>%  # Assuming 'id' is the unique identifier for each hexagon
-  summarise(gini = Gini(value), .groups = 'drop')
 
-# Load or create your georeferenced data
-study_area <- st_as_sfc(st_bbox(c(xmin = 0, ymin = 0, xmax = 10, ymax = 10)))
-study_area <- st_set_crs(study_area, 4326)  # Set CRS (e.g., WGS84)
+# Calculate cellsize for an area of 200 m²
+cellsize <- sqrt((2 * 200) / (3 * sqrt(3)))  # ≈ 8.77 meters
 
-# Generate hexagonal tessellation
-hex_grid <- st_make_grid(study_area, cellsize = 1, square = FALSE)
-
-# Convert the grid to an sf object for easier handling
-hex_grid <- st_sf(geometry = hex_grid)
-
-# Add a unique ID to each hexagon
-hex_grid$id <- 1:nrow(hex_grid)
-
-# Spatially join bird points with the hexagonal grid
-bird_in_hex <- st_join(birddata, hex_grid, join = st_within)
-
-# Aggregate species data within each hexagon
-species_counts <- bird_in_hex %>%
-  group_by(id, species) %>%  # Replace 'species' with the column name for species in your data
-  summarise(count = n(), .groups = 'drop')
-
-# Reshape data to a wide format (one row per hexagon, one column per species)
-species_wide <- species_counts %>%
-  tidyr::pivot_wider(names_from = species, values_from = count, values_fill = 0)
-
-# Calculate biodiversity indices for each hexagon
-biodiversity_indices <- species_wide %>%
-  rowwise() %>%
-  mutate(
-    shannon = diversity(c_across(-id)),  # Shannon-Wiener Index
-    simpson = diversity(c_across(-id)),  # Simpson's Index
-    richness = sum(c_across(-id) > 0)    # Species Richness
-  ) %>%
-  ungroup()
-
-# Merge biodiversity indices and Gini Index into the hexagon grid
-hex_grid_with_indices <- hex_grid %>%
-  left_join(biodiversity_indices, by = "id") %>%
-  left_join(gini_index, by = "id")
-
-# Calculate correlation coefficients
-cor_shannon_gini <- cor(hex_grid_with_indices$shannon, hex_grid_with_indices$gini, method = "pearson")
-cor_simpson_gini <- cor(hex_grid_with_indices$simpson, hex_grid_with_indices$gini, method = "pearson")
-cor_richness_gini <- cor(hex_grid_with_indices$richness, hex_grid_with_indices$gini, method = "pearson")
-
-# Print correlation coefficients
-print(paste("Correlation (Shannon vs Gini):", cor_shannon_gini))
-print(paste("Correlation (Simpson vs Gini):", cor_simpson_gini))
-print(paste("Correlation (Richness vs Gini):", cor_richness_gini))
-
-# Visualize correlations using scatter plots
-plot_shannon_gini <- ggplot(hex_grid_with_indices, aes(x = gini, y = shannon)) +
-  geom_point() +
-  geom_smooth(method = "lm", col = "blue") +
-  labs(title = "Shannon-Wiener Index vs Gini Index",
-       x = "Gini Index",
-       y = "Shannon-Wiener Index") +
-  theme_minimal()
-
-plot_simpson_gini <- ggplot(hex_grid_with_indices, aes(x = gini, y = simpson)) +
-  geom_point() +
-  geom_smooth(method = "lm", col = "red") +
-  labs(title = "Simpson's Index vs Gini Index",
-       x = "Gini Index",
-       y = "Simpson's Index") +
-  theme_minimal()
-
-plot_richness_gini <- ggplot(hex_grid_with_indices, aes(x = gini, y = richness)) +
-  geom_point() +
-  geom_smooth(method = "lm", col = "green") +
-  labs(title = "Species Richness vs Gini Index",
-       x = "Gini Index",
-       y = "Species Richness") +
-  theme_minimal()
-
-# Arrange plots in a single figure
-combined_plots <- ggarrange(plot_shannon_gini, plot_simpson_gini, plot_richness_gini, ncol = 2, nrow = 2)
-print(combined_plots)
+#Generates a hexagonal grid
+hex_grid <- st_make_grid(citydata_utm, cellsize = cellsize, square = FALSE) %>% 
+  st_as_sf() %>% 
+  mutate(ID = row_number())
+  
+#Intersect data  
+citydata_hex <- st_intersection(citydata_utm, hex_grid) %>% 
+  st_join(hex_grid, by = "ID")
+  
+birddata_hex <- st_intersection(birddata_utm, hex_grid) %>% 
+  st_join(hex_grid, by = "ID")
+  
+merged_data <- merge(citydata_hex, birddata_hex, by = "ID")
