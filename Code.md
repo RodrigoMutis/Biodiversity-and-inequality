@@ -71,4 +71,4 @@ birddata_hex <- st_intersection(birddata_utm, hex_grid) %>%
   
 merged_data <- merge(citydata_hex, birddata_hex, by = "ID")
 
-# Calculate biodiversityindex in each hexagon
+# Calculate biodiversity index in each hexagon
