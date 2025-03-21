@@ -31,7 +31,7 @@ birddata$OBSERVATION.COUNT <- as.numeric(birddata$OBSERVATION.COUNT)
 # Convert in shape
 birddata <- st_as_sf(birddata, coords = c("LONGITUDE", "LATITUDE"), crs = 4326)
 
-#Load value city data
+# Load value city data
 citydata <- st_read("path/to/citydata.shp") # Polygons
 
 # Check CRS of both shapefiles
@@ -51,12 +51,12 @@ birddata_utm <- st_transform(birddata, crs = 32618)
 # Calculate cellsize for an area of 200 m²
 cellsize <- sqrt((2 * 200) / (3 * sqrt(3)))  # ≈ 8.77 meters
 
-#Generates a hexagonal grid
+# Generates a hexagonal grid
 hex_grid <- st_make_grid(citydata_utm, cellsize = cellsize, square = FALSE) %>% 
   st_as_sf() %>% 
   mutate(ID = row_number())
   
-#Intersect data  
+# Intersect data  
 citydata_hex <- st_intersection(citydata_utm, hex_grid) %>% 
   st_join(hex_grid, by = "ID")
   
