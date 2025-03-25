@@ -1,4 +1,4 @@
-# Biodiversity-and-inequality
+## Biodiversity-and-inequality ##
 
 # Install necessary packages 
 install.packages("sf")         
@@ -45,11 +45,8 @@ citydata_utm <- st_transform(citydata, crs = 32618)
 # Reproject birddata to UTM (change the EPSG code according to city zone)
 birddata_utm <- st_transform(birddata, crs = 32618)
 
-# Calculate cellsize for an area of 10.000 m²
-cellsize <- sqrt((2 * 10000) / (3 * sqrt(3))) # ≈62.04 meters
-
 # Generates a hexagonal grid
-hex_grid <- st_make_grid(citydata_utm, cellsize = cellsize, square = FALSE) %>% 
+hex_grid <- st_make_grid(citydata_utm, cellsize = 500, square = FALSE) %>% 
   st_as_sf() %>% 
   mutate(ID = row_number())
 
@@ -108,3 +105,22 @@ hex_grid_with_indices <- hex_grid %>%
     by = "ID"
   ) %>%
   mutate(across(c(richness, shannon, simpson), ~ if_else(is.na(.), 0, .)))
+
+# Calculate Gini Index
+
+gini_por_hexagono <- citydata %>%
+  st_join(hex_grid) %>%         
+  st_drop_geometry() %>%        
+  group_by(ID) %>%              
+  summarise(
+    gini = ineq::Gini(V_REF),   
+    mean_valor = mean(V_REF),    
+    sd_valor = sd(V_REF)        
+  )
+  
+# Intersect Gini data  
+  
+hex_grid_with_gini <- hex_grid %>%
+  left_join(gini_por_hexagono, by = "ID") %>%
+  mutate(gini = replace_na(gini, 0)
+  
