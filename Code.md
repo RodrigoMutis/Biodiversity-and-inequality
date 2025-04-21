@@ -21,7 +21,7 @@ library(spatialreg)  # For Spatial regression
 library(spdep)       # For spatial dependence
 
 # Load bird data
-birddata <- read.delim("path/to/birddata.txt)
+birddata <- read.delim("path/to/birddata.txt")
 
 # Clean bird data
 birddata <- birddata %>%
