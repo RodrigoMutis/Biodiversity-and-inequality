@@ -77,8 +77,8 @@ birddata_hex <- st_intersection(birddata_utm, hex_grid) %>%
 merged_data <- st_join(citydata_hex, birddata_hex, by = "ID")
 
 # Calculate biodiversity index 
+# Classify species by abundance with new naming
 
-Classify species by abundance with new naming
 species_abundance <- birddata_hex %>%
   st_drop_geometry() %>%
   group_by(SCIENTIFIC.NAME) %>%
