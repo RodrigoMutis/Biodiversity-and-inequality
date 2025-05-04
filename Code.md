@@ -136,6 +136,42 @@ calculate_indices <- function(data, suffix) {
 }
 
 # Calculate indices
+Corrected calculation of biodiversity indices
+calculate_indices <- function(data, suffix) {
+  # Ensure we have the required columns
+  if(!"ID" %in% names(data)) {
+    stop("ID column not found in the input data")
+  }
+  
+  # Calculate abundance matrix
+  abundance_matrix <- data %>%
+    st_drop_geometry() %>%
+    group_by(ID, SCIENTIFIC.NAME) %>%  # Group by both hexagon ID and species
+    summarise(n = sum(OBSERVATION.COUNT, na.rm = TRUE),  # Sum observations per species per hexagon
+    .groups = "drop") %>%
+    pivot_wider(
+      names_from = SCIENTIFIC.NAME,
+      values_from = n,
+      values_fill = 0
+    ) %>%
+    column_to_rownames("ID")
+  
+  # Calculate biodiversity indices
+  data.frame(
+    ID = rownames(abundance_matrix),
+    richness = specnumber(abundance_matrix),
+    shannon = diversity(abundance_matrix),
+    simpson = diversity(abundance_matrix, index = "simpson"),
+    stringsAsFactors = FALSE
+  ) %>%
+    rename_with(~ paste0(., "_", suffix), -ID)
+}
+
+birddata_filtered <- birddata_hex %>%
+  st_join(hex_grid, by = "geometry") %>%  # Make sure we have the hexagon IDs
+  filter(SCIENTIFIC.NAME %in% c(common_species, rare_species))
+
+# Now calculate indices
 indices_common <- calculate_indices(
   birddata_filtered %>% filter(SCIENTIFIC.NAME %in% common_species),
   "common"
@@ -170,7 +206,7 @@ run_full_analysis <- function(data, prefix) {
     
     formula <- as.formula(paste(response, "~ gini + mean_valor"))
     
-    # Run models with error handling
+  # Run models with error handling
     models <- list(
       sar = tryCatch(
         lagsarlm(formula, data, lw, method = "eigen"),
@@ -186,7 +222,7 @@ run_full_analysis <- function(data, prefix) {
       )
     )
     
-    # Extract results
+  # Extract results
     tibble(
       model = names(models),
       aic = map_dbl(models, ~ if(!is.null(.)) AIC(.) else NA_real_),
