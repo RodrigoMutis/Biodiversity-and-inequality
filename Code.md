@@ -181,20 +181,36 @@ for(metric in metrics) {
 
 # Extract
 extract_results <- function(models) {
-  map_dfr(names(models), function(model_type) {
+  purrr::map_dfr(names(models), function(model_type) {
     model <- models[[model_type]]
-    if(is.null(model)) return(NULL)
-    
-    tidy(model) %>%
-      mutate(
-        model = model_type,
-        aic = AIC(model),
-        bic = BIC(model)
-      )
+ tryCatch({
+      broom::tidy(model) %>%
+        dplyr::mutate(
+          model = model_type,
+          aic = if("logLik" %in% methods(class=class(model)[1])) AIC(model) else NA_real_,
+          bic = if("logLik" %in% methods(class=class(model)[1])) BIC(model) else NA_real_
+        )
+    }, error = function(e) {
+      warning("Failed to process ", model_type, ": ", e$message)
+      NULL
+    })
   })
-}
+}    
 
-all_results <- map_dfr(results, extract_results, .id = "analysis")
+all_results <- purrr::map_dfr(
+  results,
+  ~tryCatch({
+    res <- extract_results(.)
+    if(is.null(res)) {
+      tibble::tibble(note = "No valid models in this group")
+    } else {
+      res
+    }
+  }, error = function(e) {
+    tibble::tibble(note = paste("Processing failed:", e$message))
+  }),
+  .id = "analysis"
+)
 
 # Summary
 coefficient_table <- all_results %>%
