@@ -72,11 +72,20 @@ centroid_data <- hex_grid %>%
   bind_cols(centroid_coords)  
   
 # Intersect data  
-citydata_hex <- st_intersection(citydata_utm, hex_grid) %>% 
-  st_join(hex_grid, by = "ID")
+citydata_hex <- # st_intersection(citydata_utm, hex_grid) %>% 
+  st_join(citydata_utm,hex_grid, by = "ID")
   
-birddata_hex <- st_intersection(birddata_utm, hex_grid) %>% 
-  st_join(hex_grid, by = "ID")
+birddata_hex <- st_intersection(birddata_utm, hex_grid) #%>% 
+  #st_join(hex_grid, birddata_utm, by = "ID")
+
+birddata_hex |> 
+    as.data.frame() |> 
+    select(-geometry) |> 
+    group_by(ID, SCIENTIFIC.NAME) |> 
+    summarize(obs = sum(OBSERVATION.COUNT)) |> 
+    right_join(hex_grid)
+
+birdat <- aggregate(x = birddata_utm, by = hex_grid, FUN = sum)
   
 merged_data <- st_join(citydata_hex, birddata_hex, by = "ID")
 
