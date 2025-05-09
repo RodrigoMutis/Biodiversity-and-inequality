@@ -31,7 +31,7 @@ birds
 ## Load value city data
 city <- st_read("data/Bogota Value/Valor_ref_2023.shp") |>  # Polygons
     select(value = V_REF)
-
+city |> plot()
 # Check CRS of both shapefiles
 st_crs(city)
 st_crs(birds)
@@ -83,7 +83,8 @@ city_hex <- city_hex |>
     summarize(
         mean_value = mean(value),
         gini = Gini(value),
-        sd_value = sd(value, na.rm = TRUE)
+        sd_value = sd(value, na.rm = TRUE),
+        n_houses = n()
     ) 
 
 hex_grid <- hex_grid |> 
@@ -134,14 +135,19 @@ dat <- hex_grid |>
 
 
 dat |> 
-    ggplot(aes(mean_value, richness)) +
-    geom_point() +
+    filter(n_houses > 40) |> 
+    ggplot(aes(gini, richness)) +
+    geom_point(aes(color = n_houses)) +
     #scale_x_log10() +
-    geom_smooth() 
+    geom_smooth() +
+    scale_colour_viridis_c()
 
 dat |> ggplot() + geom_sf(aes(fill = richness)) + lims(y = c(490000, NA))
 
-save(dat, file = "data/bogota.Rda")
+bogota <- dat
+
+
+save(bogota, file = "data/bogota.Rda")
 
 #### Regressions ####
 coords <- st_centroid(dat) %>% st_coordinates()
@@ -151,7 +157,7 @@ lw <- nb2listw(nb, style = "W")
 resp <- names(dat)[5:7]
 
 tic()
-fit <- lagsarlm(shannon ~ gini + mean_value, dat, lw, method = "eigen")
+fit <- lagsarlm(shannon ~ gini + mean_value + n_houses, dat, lw, method = "eigen")
 toc() #3.04 s
 
 tic()
@@ -159,10 +165,12 @@ fit2 <- errorsarlm(shannon ~ gini + mean_value, dat, lw, method = "eigen")
 toc() #3.3s
 
 tic()
-fit3 <- lagsarlm(shannon ~ gini + mean_value, dat, lw, method = "eigen", , type = "mixed")
+fit3 <- lagsarlm(shannon ~ gini + mean_value, dat, lw, method = "eigen", type = "mixed")
 toc() #3s
 
-summary(fit2)
+summary(fit)
 
 
 plot(dat)
+
+

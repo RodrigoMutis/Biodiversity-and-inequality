@@ -78,12 +78,13 @@ citydata_hex <- # st_intersection(citydata_utm, hex_grid) %>%
 birddata_hex <- st_intersection(birddata_utm, hex_grid) #%>% 
   #st_join(hex_grid, birddata_utm, by = "ID")
 
+hex_grid
+
 birddata_hex |> 
     as.data.frame() |> 
     select(-geometry) |> 
     group_by(ID, SCIENTIFIC.NAME) |> 
-    summarize(obs = sum(OBSERVATION.COUNT)) |> 
-    right_join(hex_grid)
+    summarize(obs = sum(OBSERVATION.COUNT)) 
 
 birdat <- aggregate(x = birddata_utm, by = hex_grid, FUN = sum)
   
