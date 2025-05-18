@@ -1,0 +1,88 @@
+library(ggplot2)
+library(ggrepel)
+library(scales)  # For better label formatting
+
+ggplot(data, aes(x = Gini, y = eBirders)) +
+  # Points with inverted color scale (red = more inequality)
+  geom_point(aes(fill = Gini, size = eBirders), 
+             shape = 21, color = "white", stroke = 0.3, alpha = 0.8) +
+  
+  # Regression elements with more visible line
+  geom_smooth(method = "lm", formula = y ~ x, 
+              color = "#2E8B57", fill = "#98FB98",
+              alpha = 0.3, level = 0.95, linewidth = 1) +
+  
+  # Smart labeling with priority for high-inequality cities
+  geom_text_repel(
+    aes(label = ifelse(Gini > 0.45 |  # Lowered threshold to highlight more unequal cities
+                      eBirders > quantile(eBirders, 0.9, na.rm = TRUE) |
+                      City %in% c("Riyad", "Cairo", "Lima", "Dubai"),  # Added most unequal cities
+                 City, "")),
+    size = 3,
+    point.padding = 0.3,
+    box.padding = 0.4,
+    min.segment.length = 0.1,
+    segment.color = "grey30",
+    segment.size = 0.2,
+    max.overlaps = 30,
+    seed = 42,
+    force = 2
+  ) +
+  
+  # INVERTED color scale (red = high inequality, green = equal)
+  scale_fill_gradientn(
+    colors = c("#4d9221", "#c7e9b4", "#fde0c3", "#f4a582", "#d6604d"),
+    name = "Green Space Inequality\n(Red = More Unequal)",
+    limits = c(0, 1),
+    breaks = c(0, 0.5, 1),
+    labels = c("Equal", "Moderate", "Unequal")
+  ) +
+  
+  # Size scale for eBirders
+  scale_size_continuous(
+    range = c(3, 10),
+    name = "eBirders (log10)",
+    breaks = c(100, 1000, 10000),
+    labels = comma
+  ) +
+  
+  # Publication-quality labels
+  labs(
+    title = "Birding Activity vs Urban Green Inequality",
+    subtitle = "Cities with more unequal green space distribution show different birding patterns",
+    x = "Urban Green Space Inequality (Gini Coefficient)",
+    y = "Number of eBird Observations (log10)",
+    caption = "eBird data © Cornell Lab of Ornithology | Gini calculated from NDVI distribution"
+  ) +
+  
+  # Enhanced theme
+  theme_minimal(base_size = 12) +
+  theme(
+    text = element_text(family = "Arial"),
+    plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+    plot.subtitle = element_text(size = 11, hjust = 0.5, color = "grey30"),
+    axis.title = element_text(size = 11, face = "plain"),
+    axis.text = element_text(size = 10),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(linewidth = 0.2, color = "grey90"),
+    plot.margin = unit(c(10, 15, 10, 10), "pt"),
+    plot.caption = element_text(size = 9, color = "grey40", hjust = 0.5),
+    legend.position = "bottom",
+    legend.box = "horizontal",
+    legend.title = element_text(size = 9),
+    legend.text = element_text(size = 8),
+    legend.spacing.x = unit(0.5, "cm")
+  ) +
+  
+  # Log scale with better breaks
+  scale_y_log10(
+    breaks = c(100, 300, 1000, 3000, 10000),
+    labels = comma,
+    expand = expansion(mult = c(0.05, 0.15))
+  ) +
+  
+  # X-axis limits
+  scale_x_continuous(
+    limits = c(0, max(data$Gini, na.rm = TRUE) * 1.05),
+    expand = expansion(mult = c(0.02, 0.02))
+)

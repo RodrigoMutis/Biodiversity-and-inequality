@@ -1,0 +1,57 @@
+# Create summary table
+results_table <- map2_dfr(
+    list(sar_fits, sem_fits, sdm_fits),
+    c("SAR", "SEM", "SDM"),
+    function(model_list, model_name) {
+        map2_dfr(model_list, fls, function(x, file_path) {
+            city_name <- case_when(
+                str_detect(file_path, "bogota") ~ "Bogotá",
+                str_detect(file_path, "capetown") ~ "Cape Town",
+                str_detect(file_path, "london") ~ "London",
+                str_detect(file_path, "losangeles") ~ "Los Angeles",
+                str_detect(file_path, "mexico") ~ "Mexico City",
+                str_detect(file_path, "santiago") ~ "Santiago",
+                str_detect(file_path, "sydney") ~ "Sydney"
+            )
+            
+            if (!is.null(x$result)) {
+                broom::glance(x$result) %>% 
+                    bind_cols(broom::tidy(x$result)) %>% 
+                    mutate(
+                        model = model_name,
+                        city = city_name
+                    )
+            } else {
+                tibble(
+                    model = model_name,
+                    city = city_name,
+                    error = "Failed"
+                )
+            }
+        })
+    }
+)
+library(gt)
+
+# Create tables
+results_table %>%
+    filter(!is.na(estimate)) %>%
+    select(city, model, term, estimate, p.value, AIC) %>%
+    gt() %>%
+    fmt_number(columns = c(estimate, p.value), decimals = 3) %>%
+    tab_style(
+        style = cell_fill(color = "lightgreen"),
+        locations = cells_body(columns = p.value, rows = p.value < 0.05)
+    ) %>%
+    tab_header(title = "Spatial Regression Results by City")
+
+# Clean up term names
+results_table <- results_table %>%
+    mutate(
+        term = case_when(
+            term == "rho" ~ "Spatial Lag (ρ)",
+            term == "lambda" ~ "Spatial Error (λ)",
+            str_detect(term, "lag.") ~ paste("Lag", str_remove(term, "lag.")),
+            TRUE ~ term
+        )
+    )
