@@ -7,7 +7,7 @@ library(tictoc)
 library(naniar)
 library(fs)
 
-fls <- dir_ls("data/") |> str_subset(pattern = "\\.Rda$")
+fls <- dir_ls("data/500/") |> str_subset(pattern = "\\.Rda$")
 
 load(fls[1])
 bta <- dat
@@ -31,10 +31,11 @@ dat[[3]] |>
     ggplot() +
     geom_sf(aes(fill = gini))
 
-dat[[5]] |> 
+dat[[7]] |> 
     #filter(shannon >0) |> 
-    ggplot(aes(shannon, mean_value)) + 
-    geom_point() + geom_smooth(method = "lm")
+    ggplot(aes(gini, mean_value)) + 
+    geom_point() + geom_smooth(method = "lm") +
+    scale_y_log10()
 
 dat |> 
     ggplot() +
@@ -64,7 +65,7 @@ list_weights <- function(x){
 
 sar <- safely(function(x){
     lw <- list_weights(x)
-    fit <- lagsarlm(shannon ~ gini , x, lw, method = "eigen")
+    fit <- lagsarlm(shannon ~ gini  , x, lw, method = "eigen")
     return(fit)
 })
 
@@ -76,7 +77,7 @@ sem <- safely(function(x){
 
 sdm <- safely(function(x){
     lw <- list_weights(x)
-    fit <- lagsarlm(shannon ~ gini , x, lw, method = "eigen", type = "mixed")
+    fit <- lagsarlm(shannon ~ gini, x, lw, method = "eigen", type = "mixed")
     return(fit)
 })
 
@@ -113,6 +114,7 @@ sdm_df <- transpose(sdm_fits)$result |> map(.f = broom::tidy ) |>
 df_fit <- bind_rows(bind_rows(sar_df), bind_rows(sdm_df) , bind_rows(sem_df))
 
 df_fit |> 
+    #filter(term != "rho", term != "lambda") |> 
     mutate(p_value = case_when(
         p.value > 0.05 ~ "p > 0.05",
         p.value <= 0.05 & p.value > 0.01 ~ "p < 0.05",
@@ -123,8 +125,10 @@ df_fit |>
     geom_errorbarh(aes(xmin = estimate-std.error, xmax = estimate+std.error, color = p_value),
                    height = 0.25) +
     geom_vline(xintercept = 0, linetype = 2, color = "black") +
-    facet_grid(model ~ city, scales = "free_x") +
-    theme_light()
+    facet_grid(model ~ city, scales = "free") +
+    theme_light(base_size = 10)
+
+save(sdm_fits, sar_fits, sem_fits, df_fit, file = "results_regressions.Rda")
 
 #### Left over ####
 coords <- st_centroid(mxc) %>% st_coordinates()

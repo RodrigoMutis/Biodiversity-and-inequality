@@ -1,0 +1,48 @@
+---
+title: "Exploring the relationship between socioeconomic inequality and urban bird biodiversity across seven global cities using citizen science data"
+output:
+  pdf_document:
+    dev: pdf
+    keep_tex: yes
+    toc: no
+    latex_engine: xelatex
+  rtf_document:
+    toc: no
+  word_document:
+csl: /Users/juanrocha/Documents/styles/ecology.csl
+bibliography: refs.bib
+citecolor: blue
+documentclass: article
+font: Arial
+fontsize: 10pt
+linkcolor: blue
+urlcolor: blue
+header-includes:
+- \usepackage{dcolumn, rotating, longtable, lineno, float, array, tabularx, inputenc}
+- \setmainfont{Arial}
+- \renewcommand{\abstractname}{}
+- \graphicspath{{figures/}}
+- \usepackage[margin=2.5cm]{geometry}
+- \linenumbers
+- \usepackage{setspace}
+---
+
+```{r warning= FALSE, message = FALSE, include = FALSE}
+library(tidyverse)
+library(stargazer)
+load("results_regressions.Rda")
+```
+
+## Introduction
+
+Urban biodiversity provides essential ecosystem services, enhances human well-being, and strengthens the resilience of cities in the face of environmental change [@mcphearson2015; @zari2018importance] (McPhearson et al., 2014; Zari, 2018; Methorst, 2024).
+Nevertheless, biodiversity in urban landscapes is increasingly threatened by anthropogenic pressures such as habitat loss, pollution, and climate change (McDonald et al., 2009; Aronson et al., 2014; Keck et al., 2025).
+Among the socio-environmental drivers of this decline, socioeconomic inequality has been proposed as a key factor shaping the spatial distribution of biodiversity, contributing to broader patterns of biodiversity loss (Mikkelson et al., 2007; Holland et al., 2009; Hamann et al., 2018).
+As global urbanization accelerates, understanding what drives biodiversity patterns in cities becomes critical—not only for ecological sustainability but also for social equity.
+Urbanization's effects are not solely physical.
+Research has emphasized that a complete understanding of urban ecosystems requires engaging with their socioeconomic dimensions, including city design, demographic concentration, community identity, and inequality (Alberti et al., 2003).
+These factors influence biodiversity patterns, which reflect underlying socioeconomic and institutional structures such as income inequality, land-use planning, and urban segregation (Wolch et al., 2014; Aronson et al., 2017).
+
+```{r results='asis', warning=FALSE, message = FALSE, include = FALSE}
+stargazer(transpose(sar_fits)$result[[7]], header = FALSE)
+```

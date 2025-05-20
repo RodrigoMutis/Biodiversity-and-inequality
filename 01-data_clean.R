@@ -10,10 +10,23 @@ library(spdep)       # For spatial dependence
 library(tictoc)
 library(naniar)
 library(tidyverse)
+
+# parameters per city:
+# bogota
+birds_fls <- "data/Bogota/Birds/Bogotabirddata.txt"
+shp_fls <- "data/Bogota/Valor_ref_2023/Valor_ref_2023.shp"
+local_utm <- 32618
+
+# mexico
+birds_fls <- "data/Mexico City/Birds/Mexicobirds.txt"
+shp_fls <- "data/Mexico City/09_Manzanas_INV2020_shp/INV2020_IND_PVEU_MZA_09.shp"
+local_utm <- 32618
+
+
 #### Clean data ####
 # Load bird data
 tic()
-birds <- read.delim("data/Bogotabirddata.txt") |> 
+birds <- read.delim(birds_fls) |> 
     janitor::clean_names() |> 
     as_tibble()
 toc()
@@ -29,7 +42,7 @@ birds <- birds |>
 birds
 
 ## Load value city data
-city <- st_read("data/Bogota Value/Valor_ref_2023.shp") |>  # Polygons
+city <- st_read(shp_fls) |>  # Polygons
     select(value = V_REF)
 city |> plot()
 # Check CRS of both shapefiles
@@ -41,10 +54,10 @@ st_crs(birds)
 #birddata <- st_transform(birddata, st_crs(citydata))
 
 # Reproject citydata to UTM (change the EPSG code according to city zone)
-city <- st_transform(city, crs = 32618)
+city <- st_transform(city, crs = local_utm)
 
 # Reproject birddata to UTM (change the EPSG code according to city zone)
-birds <- st_transform(birds, crs = 32618)
+birds <- st_transform(birds, crs = local_utm)
 
 # Generates a hexagonal grid
 hex_grid <- st_make_grid(city, cellsize = 500, square = FALSE) %>% 
@@ -135,14 +148,14 @@ dat <- hex_grid |>
 
 
 dat |> 
-    filter(n_houses > 40) |> 
+    filter(n_houses > 10) |> 
     ggplot(aes(gini, richness)) +
     geom_point(aes(color = n_houses)) +
     #scale_x_log10() +
     geom_smooth() +
     scale_colour_viridis_c()
 
-dat |> ggplot() + geom_sf(aes(fill = richness)) + lims(y = c(490000, NA))
+dat |> ggplot() + geom_sf(aes(fill = gini)) + lims(y = c(490000, NA))
 
 bogota <- dat
 
