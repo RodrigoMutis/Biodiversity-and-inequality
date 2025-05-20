@@ -7,34 +7,36 @@ library(tictoc)
 library(naniar)
 library(fs)
 
-fls <- dir_ls("data/500/") |> str_subset(pattern = "\\.Rda$")
-
+fls <- dir_ls("data/1000m/") |> str_subset(pattern = "\\.Rda$")
+fls
 load(fls[1])
-bta <- dat
+#bta <- dat
 load(fls[2])
-cape <- dat
+#cape <- dat
 load(fls[3])
-ldn <- dat
+#ldn <- dat
 load(fls[4])
-la <- dat
+#la <- dat
 load(fls[5])
-mxc <- dat
+#mxc <- dat
 load(fls[6])
-stg <- dat
+#stg <- dat
 load(fls[7])
-syd <- dat
-rm(dat)
+#syd <- dat
+#rm(dat)
 
-dat <- list(bta, cape, ldn, la, mxc, stg, syd)
+dat <- list(bogota, capetown, london, losangeles, mexico, santiago, sydney)
 
 dat[[3]] |> 
     ggplot() +
     geom_sf(aes(fill = gini))
 
-dat[[7]] |> 
-    #filter(shannon >0) |> 
+dat[[1]] |> 
+    #filter(gini >0) |> 
     ggplot(aes(gini, mean_value)) + 
-    geom_point() + geom_smooth(method = "lm") +
+    geom_point(aes(color = shannon)) + 
+    geom_smooth(method = "loess") +
+    scale_color_viridis_c() +
     scale_y_log10()
 
 dat |> 
@@ -65,19 +67,19 @@ list_weights <- function(x){
 
 sar <- safely(function(x){
     lw <- list_weights(x)
-    fit <- lagsarlm(shannon ~ gini  , x, lw, method = "eigen")
+    fit <- lagsarlm(shannon ~ gini + mean_value , x, lw, method = "eigen")
     return(fit)
 })
 
 sem <- safely(function(x){
     lw <- list_weights(x)
-    fit <- errorsarlm(shannon ~ gini , x, lw, method = "eigen")
+    fit <- errorsarlm(shannon ~ gini + mean_value , x, lw, method = "eigen")
     return(fit)
 })
 
 sdm <- safely(function(x){
     lw <- list_weights(x)
-    fit <- lagsarlm(shannon ~ gini, x, lw, method = "eigen", type = "mixed")
+    fit <- lagsarlm(shannon ~ gini + mean_value, x, lw, method = "eigen", type = "mixed")
     return(fit)
 })
 
@@ -115,6 +117,14 @@ df_fit <- bind_rows(bind_rows(sar_df), bind_rows(sdm_df) , bind_rows(sem_df))
 
 df_fit |> 
     #filter(term != "rho", term != "lambda") |> 
+    mutate(city = case_when(
+        city == "1000m/bogota" ~ "Bogotá",
+        city == "1000m/capetown" ~ "Cape Town",
+        city == "1000m/london" ~ "London",
+        city == "1000m/losangeles" ~ "Los Angeles",
+        city == "1000m/mexico" ~ "Mexico city",
+        city == "1000m/sydney" ~ "Sydney"
+    )) |> 
     mutate(p_value = case_when(
         p.value > 0.05 ~ "p > 0.05",
         p.value <= 0.05 & p.value > 0.01 ~ "p < 0.05",
@@ -125,10 +135,18 @@ df_fit |>
     geom_errorbarh(aes(xmin = estimate-std.error, xmax = estimate+std.error, color = p_value),
                    height = 0.25) +
     geom_vline(xintercept = 0, linetype = 2, color = "black") +
+    scale_x_continuous(n.breaks = 3) +
+    scale_color_manual("P values", values = c("red", "goldenrod", "grey75"))+
     facet_grid(model ~ city, scales = "free") +
-    theme_light(base_size = 10)
+    theme_light(base_size = 10) + theme(legend.position = "bottom")
 
-save(sdm_fits, sar_fits, sem_fits, df_fit, file = "results_regressions.Rda")
+save(sdm_fits, sar_fits, sem_fits, df_fit, file = "results_regressions_1000m.Rda")
+
+ggsave(
+    plot = last_plot(),
+    file = "1000m_regressions.png", device = "png", width = 7, height = 5, bg = "white",
+    dpi = 400
+)
 
 #### Left over ####
 coords <- st_centroid(mxc) %>% st_coordinates()
